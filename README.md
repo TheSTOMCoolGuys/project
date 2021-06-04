@@ -1,3 +1,3 @@
-# Summer project
+# STOM project
 
-This is a repo for frens who do summer project 
+This is a repo for frens who do project 
