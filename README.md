@@ -1,4 +1,3 @@
-# project
-A project
+# Summer project
 
-The project
+This is a repo for frens who do summer project 
