@@ -227,3 +227,42 @@ ax.yaxis.set_minor_locator(AutoMinorLocator(4))
 plt.show()
 # ============================================================================= Samuel's version of chi-squared fit
 
+# ============================================================================= Find goodness and hypothesis testing
+goodness = st.get_B_chi(vals, (104, 155), 30, A_opt, lamb_opt)
+#Goodness measures the ratio of chi-squared value with N_dof. It is a bad fit since goodness > 1
+chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_opt), ddof=1)
+#We set ddof = 1 although there are two degrees of freedom because documentation has an addition -1 to correct for bias.
+#The p-value is in the order of magnitude of 10^-7. There is a very small possibility to getting the observed or an even worse value.
+#Therefore, we may reject this hypothesis at the 5e-7 = 5e-5% = 0.00005% significance level.
+# ============================================================================= Find goodness and hypothesis testing
+
+# ============================================================================= Performing multiple iterations to find chi-square distribution
+#Warning!
+#Beware of long iteration time - it shall take about a minute for 1k iterations
+chi2_array = []
+iterations = 1000
+for j in range(iterations):
+    vals = st.generate_data()
+    bin_heights, bin_edges = np.histogram(vals, range = [104, 155], bins = 30)
+    bin_centres = 0.5*(bin_edges[1:]+bin_edges[:-1])
+    bin_width = bin_edges[1]-bin_edges[0]
+    bin_heights_background = []
+    bin_centres_background = []
+    for i in range(len(bin_heights)):
+        if bin_centres[i] < 115 or bin_centres[i] > 130: #Choosing criterion
+            bin_heights_background.append(bin_heights[i])
+            bin_centres_background.append(bin_centres[i])
+    bin_heights_background = np.array(bin_heights_background)
+    bin_centres_background = np.array(bin_centres_background)
+
+    args = (bin_heights_background, bin_centres_background)
+    initial_guess = np.array([30, 10000])
+    results = spo.minimize(chi_squared, initial_guess, args)
+    lamb_opt, A_opt = results['x']
+    chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_opt), ddof=1)
+    chi2_array.append(chi2)
+plt.hist(chi2_array)
+plt.show()
+# ============================================================================= Performing multiple iterations to find chi-square distribution
+
+
