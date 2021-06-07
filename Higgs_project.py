@@ -188,6 +188,42 @@ plt.plot(bin_edges2, fit_y_values, label = 'Curvefit')
 plt.legend()
 # ============================================================================= USING CURVEFIT SEEMS TO WORK BEST
 
+# ============================================================================= Samuel's version of chi-squared fit
+def exponential(x, lamb, A):
+    return A * np.exp(-x/lamb)
+def chi_squared(params, ni, xi): #Note: ni and xi are data arrays
+    pull_i = 0
+    for i in range(len(ni)):
+        pull_i += (ni[i] - params[1] * np.exp(-xi[i]/params[0]))**2 / ni[i]
+    return pull_i
 
+bin_heights_background = []
+bin_centres_background = []
+for i in range(len(bin_heights)):
+    if bin_centres[i] < 115 or bin_centres[i] > 130: #Choosing criterion
+        bin_heights_background.append(bin_heights[i])
+        bin_centres_background.append(bin_centres[i])
+bin_heights_background = np.array(bin_heights_background)
+bin_centres_background = np.array(bin_centres_background)
 
+args = (bin_heights_background, bin_centres_background)
+initial_guess = np.array([30, 10000])
+results = spo.minimize(chi_squared, initial_guess, args)
+chi_min = results['fun']
+lamb_opt, A_opt = results['x']
+
+x_array = np.linspace(104, 155, 1000)
+fig, ax = plt.subplots()
+ax.errorbar(bin_centres, bin_heights, xerr = bin_width/2, yerr=np.sqrt(bin_heights), fmt='.', mew=0.5, lw=0.5, ms=8, capsize=1, color='black', label='Data')
+ax.plot(x_array, exponential(x_array, lamb_opt, A_opt), color='red', label='Fit')
+ax.set_xlabel(r'$m_{\gamma\gamma}$ (GeV/c$^2$)')
+ax.set_ylabel('Number of Entries')
+ax.legend(frameon=False)
+ax.tick_params(direction='in',which='both')
+ax.minorticks_on()
+ax.xaxis.set_minor_locator(AutoMinorLocator(2))
+ax.yaxis.set_minor_locator(AutoMinorLocator(4))
+#plt.savefig('chi.eps', format='eps)
+plt.show()
+# ============================================================================= Samuel's version of chi-squared fit
 
