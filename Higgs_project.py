@@ -238,9 +238,9 @@ chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_
 
 # ============================================================================= Performing multiple iterations to find chi-square distribution
 #Warning!
-#Beware of long iteration time - it shall take about a minute for 1k iterations
+#Beware of long iteration time - it shall take about ten seconds for 100 iterations, but about 10-15 minutes for 10k iterations!
 chi2_array = []
-iterations = 1000
+iterations = 100 #It should be 10000, but 
 for j in range(iterations):
     vals = st.generate_data()
     bin_heights, bin_edges = np.histogram(vals, range = [104, 155], bins = 30)
@@ -261,8 +261,29 @@ for j in range(iterations):
     lamb_opt, A_opt = results['x']
     chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_opt), ddof=1)
     chi2_array.append(chi2)
-plt.hist(chi2_array)
-plt.show()
+chi2_array.sort()
 # ============================================================================= Performing multiple iterations to find chi-square distribution
 
+# ============================================================================= Plotting the data distribution vs the expected distribution for ddof=28
+#Please do not execute the code block above more than once, don't spend your life waiting for your computer to get hot.
+#Plot the distribution of chi-square in 10k iterations.
+#np.savetxt('chisquare_distribution.csv', chi2_array, delimiter=',') #Save chi-square distribution data here to save time
+#chi2_array = np.loadtxt('chisquare_distribution.csv', delimiter=',') #Load chi-square distribution from saved data
+chi2_x = np.linspace(0, 160, 1000)
+chi2_y = sps.chi2.pdf(chi2_x, 30-2) #Second argument is ddof
+fig, ax = plt.subplots()
+chi2_values, chi2_bins, chi2_patches = ax.hist(chi2_array, label='Distribution', bins=30, histtype='step', color='red')
+chi2_area = sum(np.diff(chi2_bins)*chi2_values) #Scale PDF by calculating the area under the histogram
+ax.plot(chi2_x, chi2_y*chi2_area, label='PDF (ddof=28)', color='black') #N.B. PDF changes with the number of bins
+ax.set_xlabel(r'$\chi^2$')
+ax.set_ylabel('Number of simulations')
+ax.set_xlim((0,150))
+ax.legend(frameon=False)
+ax.tick_params(direction='in', which='both', axis='y')
+ax.minorticks_on()
+ax.xaxis.set_minor_locator(AutoMinorLocator(2))
+ax.yaxis.set_minor_locator(AutoMinorLocator(4))
+#plt.savefig('chisquare_distribution.eps', format='eps)
+plt.show()
+# ============================================================================= Plotting the data distribution vs the expected distribution for ddof=28
 
