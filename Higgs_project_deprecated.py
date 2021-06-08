@@ -21,7 +21,7 @@ ax.tick_params(direction='in',which='both')
 ax.minorticks_on()
 ax.xaxis.set_minor_locator(AutoMinorLocator(2))
 ax.yaxis.set_minor_locator(AutoMinorLocator(4))
-plt.show()
+
 
 #Question 2
 #a.
@@ -101,12 +101,12 @@ plt.plot(bin_edges, fit_y_values, label = 'Excluding Signal, Only <MeV in Visual
 
 
 
-#Making another histogram, but this one takes the <120 MeV results and >130 MeV results in our range
+# Making another histogram, but this one takes the <120 MeV results and >130 MeV results in our range
 
 bin_heights2, bin_edges2 = np.histogram(advanced_cut_values, range = [104, 155], bins = 30)
 bin_centres2 = 0.5*(bin_edges2[1:]+bin_edges2[:-1])
 bin_width2 = bin_edges2[1]-bin_edges2[0]
-#Removing those two values that don't work cos they include part of the signal
+# Removing those two values that don't work cos they include part of the signal
 indexremove1 = np.where(bin_centres2 == 130.35)
 bin_centres2 = np.delete(bin_centres2, indexremove1)
 bin_heights2 = np.delete(bin_heights2, indexremove1)
@@ -180,7 +180,7 @@ plt.plot(bin_edges, fit_y_values, label = 'Including Signal')
 def parameter_fit(x, A):
     fit = A*np.exp(-x/lam)
     return fit
-
+      #
 A3, A_cov= sp.optimize.curve_fit(parameter_fit, bin_centres2, bin_heights2, guess)
 
 fit_y_values = st.get_B_expectation(bin_edges2, A3, initial_lambda)
@@ -188,101 +188,124 @@ plt.plot(bin_edges2, fit_y_values, label = 'Curvefit')
 plt.legend()
 # ============================================================================= USING CURVEFIT SEEMS TO WORK BEST
 
-# ============================================================================= Samuel's version of chi-squared fit
-def exponential(x, lamb, A):
-    return A * np.exp(-x/lamb)
-def chi_squared(params, ni, xi): #Note: ni and xi are data arrays
-    pull_i = 0
-    for i in range(len(ni)):
-        pull_i += (ni[i] - params[1] * np.exp(-xi[i]/params[0]))**2 / ni[i]
-    return pull_i
+# [Daniel has left the chat]
+# [Dillen has entered the chat]
 
-bin_heights_background = []
-bin_centres_background = []
-for i in range(len(bin_heights)):
-    if bin_centres[i] < 115 or bin_centres[i] > 130: #Choosing criterion
-        bin_heights_background.append(bin_heights[i])
-        bin_centres_background.append(bin_centres[i])
-bin_heights_background = np.array(bin_heights_background)
-bin_centres_background = np.array(bin_centres_background)
+#-----------------------------------------------------------
+# part 2 (d) fitting the χ^2 method and finding the best fit
+# Just to explain what is beind done with the χ^2 method:
+# 1) the pull, Pi, is defined as (yi-f(θ))/σi which defines the difference between the actual data and theoretical
+#    function with parameter θ.
+# 2) χ^2 = ΣPi over all the individual data points
+# 3) change θ and repeat
+# In this case the parameter θ will be λ and A which will lopp through a bunch of different numbers.
+# the measured values will be found in the array bin_heights2 and σi will be sqrt(bin_heights2)
+# note: bin_heights2 is the data WITHOUT the signal data, i.e. the background exponential
 
-args = (bin_heights_background, bin_centres_background)
-initial_guess = np.array([30, 10000])
-results = scipy.optimize.minimize(chi_squared, initial_guess, args)
-chi_min = results['fun']
-lamb_opt, A_opt = results['x']
+# The exponential function
+def exponential(lamb, A, xArray):
+    return A*np.exp(-xArray/lamb)
 
-x_array = np.linspace(104, 155, 1000)
-fig, ax = plt.subplots()
-ax.errorbar(bin_centres, bin_heights, xerr = bin_width/2, yerr=np.sqrt(bin_heights), fmt='.', mew=0.5, lw=0.5, ms=8, capsize=1, color='black', label='Data')
-ax.plot(x_array, exponential(x_array, lamb_opt, A_opt), color='red', label='Fit')
-ax.set_xlabel(r'$m_{\gamma\gamma}$ (GeV/c$^2$)')
-ax.set_ylabel('Number of Entries')
-ax.legend(frameon=False)
-ax.tick_params(direction='in',which='both')
-ax.minorticks_on()
-ax.xaxis.set_minor_locator(AutoMinorLocator(2))
-ax.yaxis.set_minor_locator(AutoMinorLocator(4))
-#plt.savefig('chi.eps', format='eps)
+# The pull
+def pull(yArray,function,uncertaintyArray,i):
+    return abs((yArray[i] - function[i])/uncertaintyArray[i])
+
+# The χ^2 summation
+def chisq(array,uncertaintyArray,lamb,A):
+    temp = 0
+    for i in range(len(array)):
+        temp += pull(array,exponential(lamb,A,array),uncertaintyArray,i)
+    return temp
+
+# Now we can use the chi^2 method to loop through for a specific A or lambda
+#first define some useful variables
+uncertainty = np.sqrt(bin_heights2)
+
+# The maximsing algorithm will contain two parts, the first of which can be ignored and replaced with a manual
+# search whereas the second part is finer and will go into the detail.
+
+# The first steps consists of taking N equally seperated steps between a lower and upper range of values, and
+# run the chi^2 function. Clearly the smaller the interval the finer steps it would diescover but consequently
+# the longer it takes to run. After it has run through all the steps it will then choose the value which produces
+# the largest value and move to step 2. As mentioned previously this step can be removed and replaced with a
+# single value
+
+# The second step involves taking the point and going up or down and finding the maximum value.
+
+# step (1)
+# define the range to go over
+valuesForAOptimise = np.linspace(0,100000,10000)
+valuesForLambdaOptimise = np.linspace(1,60,20)
+
+listOfAs = np.ndarray(len(valuesForAOptimise))
+listOfLambdas = np.ndarray(len(valuesForLambdaOptimise))
+
+# first find the maximum a using a completely arbitray lambda
+for a in valuesForAOptimise:
+    np.append(listOfAs,chisq(bin_heights2,uncertainty,10,a))
+    print(chisq(bin_heights2,uncertainty,1,a))
+# then take the index of the largest value and use that as a guess for finding lambda
+roughAIndex = np.where(listOfAs == np.amin(listOfAs))[0][0]
+
+for l in valuesForLambdaOptimise:
+    np.append(listOfLambdas,chisq(bin_heights2,uncertainty,l,valuesForAOptimise[roughAIndex]))
+
+# now we take the index of the best lambda value
+roughLIndex = np.where(listOfLambdas == np.amin(listOfLambdas))[0][0]
+
+# now we have the two rough numbers, time to optimise using an incremental method
+# This method also assumes a single peak with one stationary point, the peak.
+
+#take the largest integer,which is the previous method, as base line and take only 1/10 the size
+aStep = 0.1*(valuesForAOptimise[1]-valuesForAOptimise[0])
+lStep = 0.1*(valuesForLambdaOptimise[1]-valuesForLambdaOptimise[0])
+
+def upOrDown(array,index,step):
+    up = chisq(bin_heights2,uncertainty,l,array[index]+step)
+    down = chisq(bin_heights2,uncertainty,l,array[index]-step)
+    if up > down:
+        return '+'
+    elif up < down:
+        return '-'
+    else:
+        return '='
+
+
+threshold = 1e-20 #defines how accurate we need to be
+
+print(roughAIndex)
+
+if upOrDown(valuesForAOptimise,roughAIndex,aStep) == '+':
+    while aStep > threshold:
+        newA = valuesForAOptimise[roughAIndex]+aStep
+        nextStep = chisq(bin_heights2,uncertainty,l,newA)
+        if nextStep < chisq(bin_heights2,uncertainty,l,valuesForAOptimise[roughAIndex]):
+            aStep += aStep
+        else:
+            newA = valuesForAOptimise[roughAIndex]-aStep
+            nextStep = chisq(bin_heights2,uncertainty,l,newA)
+            aStep = aStep+0.1*aStep
+elif upOrDown(valuesForAOptimise,roughAIndex,aStep) == '-':
+    while aStep > threshold:
+        newA = valuesForAOptimise[roughAIndex]-aStep
+        nextStep = chisq(bin_heights2,uncertainty,l,newA)
+        if nextStep < chisq(bin_heights2,uncertainty,l,valuesForAOptimise[roughAIndex]):
+            aStep += aStep
+        else:
+            newA = valuesForAOptimise[roughAIndex]+aStep
+            nextStep = chisq(bin_heights2,uncertainty,l,newA)
+            aStep *= 0.1
+else:
+    print('Unlikely equal error, try with differnt initial conditions')
+
+
+
+print(newA)
+
+
+
+
+
+
+
 plt.show()
-# ============================================================================= Samuel's version of chi-squared fit
-
-# ============================================================================= Find goodness and hypothesis testing
-goodness = st.get_B_chi(vals, (104, 155), 30, A_opt, lamb_opt)
-#Goodness measures the ratio of chi-squared value with N_dof. It is a bad fit since goodness > 1
-chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_opt), ddof=1)
-#We set ddof = 1 although there are two degrees of freedom because documentation has an addition -1 to correct for bias.
-#The p-value is in the order of magnitude of 10^-7. There is a very small possibility to getting the observed or an even worse value.
-#Therefore, we may reject this hypothesis at the 5e-7 = 5e-5% = 0.00005% significance level.
-# ============================================================================= Find goodness and hypothesis testing
-
-# ============================================================================= Performing multiple iterations to find chi-square distribution
-#Warning!
-#Beware of long iteration time - it shall take about ten seconds for 100 iterations, but about 10-15 minutes for 10k iterations!
-chi2_array = []
-iterations = 100 #It should be 10000, but
-for j in range(iterations):
-    vals = st.generate_data()
-    bin_heights, bin_edges = np.histogram(vals, range = [104, 155], bins = 30)
-    bin_centres = 0.5*(bin_edges[1:]+bin_edges[:-1])
-    bin_width = bin_edges[1]-bin_edges[0]
-    bin_heights_background = []
-    bin_centres_background = []
-    for i in range(len(bin_heights)):
-        if bin_centres[i] < 115 or bin_centres[i] > 130: #Choosing criterion
-            bin_heights_background.append(bin_heights[i])
-            bin_centres_background.append(bin_centres[i])
-    bin_heights_background = np.array(bin_heights_background)
-    bin_centres_background = np.array(bin_centres_background)
-
-    args = (bin_heights_background, bin_centres_background)
-    initial_guess = np.array([30, 10000])
-    results = spo.minimize(chi_squared, initial_guess, args)
-    lamb_opt, A_opt = results['x']
-    chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_opt), ddof=1)
-    chi2_array.append(chi2)
-chi2_array.sort()
-# ============================================================================= Performing multiple iterations to find chi-square distribution
-
-# ============================================================================= Plotting the data distribution vs the expected distribution for ddof=28
-#Please do not execute the code block above more than once, don't spend your life waiting for your computer to get hot.
-#Plot the distribution of chi-square in 10k iterations.
-#np.savetxt('chisquare_distribution.csv', chi2_array, delimiter=',') #Save chi-square distribution data here to save time
-#chi2_array = np.loadtxt('chisquare_distribution.csv', delimiter=',') #Load chi-square distribution from saved data
-chi2_x = np.linspace(0, 160, 1000)
-chi2_y = sps.chi2.pdf(chi2_x, 30-2) #Second argument is ddof
-fig, ax = plt.subplots()
-chi2_values, chi2_bins, chi2_patches = ax.hist(chi2_array, label='Distribution', bins=30, histtype='step', color='red')
-chi2_area = sum(np.diff(chi2_bins)*chi2_values) #Scale PDF by calculating the area under the histogram
-ax.plot(chi2_x, chi2_y*chi2_area, label='PDF (ddof=28)', color='black') #N.B. PDF changes with the number of bins
-ax.set_xlabel(r'$\chi^2$')
-ax.set_ylabel('Number of simulations')
-ax.set_xlim((0,150))
-ax.legend(frameon=False)
-ax.tick_params(direction='in', which='both', axis='y')
-ax.minorticks_on()
-ax.xaxis.set_minor_locator(AutoMinorLocator(2))
-ax.yaxis.set_minor_locator(AutoMinorLocator(4))
-#plt.savefig('chisquare_distribution.eps', format='eps)
-plt.show()
-# ============================================================================= Plotting the data distribution vs the expected distribution for ddof=28
