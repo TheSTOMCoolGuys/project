@@ -240,7 +240,7 @@ chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_
 #Warning!
 #Beware of long iteration time - it shall take about ten seconds for 100 iterations, but about 10-15 minutes for 10k iterations!
 chi2_array = []
-iterations = 100 #It should be 10000, but
+iterations = 100 #Original code = 10000
 for j in range(iterations):
     vals = st.generate_data(0)
     bin_heights, bin_edges = np.histogram(vals, range = [104, 155], bins = 30)
@@ -287,3 +287,115 @@ ax.yaxis.set_minor_locator(AutoMinorLocator(4))
 #plt.savefig('chisquare_distribution_nosignal.eps', format='eps')
 plt.show()
 # ============================================================================= Plotting the data distribution vs the expected distribution for ddof=28
+
+# ============================================================================= Obtaining expected p-values for varying number of signals
+#Warning!
+#Beware of long iteration time - it shall take about three hours for 1k iterations
+#Do NOT execute this code block unless your computer is connected to a power source.
+#And that you have plenty of time to spare.
+#Now we try to vary the number of signals to find the number of signals where the p-value = 0.05
+iterations = 10 #Original code = 1000
+signal_min = 150 #An initial search shows that the expected p-value starts to drop below 0.1 when signal > 150. This is set to reduce iterations
+signal_max = 400 #endpoint = False
+step = 5 #Must be a factor of signal_max - signal_min
+p_values = []
+for j in range(signal_min, signal_max+1, step):
+    p_value_array = []
+    for k in range(iterations):
+        vals = st.generate_data(j)
+        bin_heights, bin_edges = np.histogram(vals, range = [104, 155], bins = 30)
+        bin_centres = 0.5*(bin_edges[1:]+bin_edges[:-1])
+        bin_width = bin_edges[1]-bin_edges[0]
+    
+        bin_heights_background = []
+        bin_centres_background = []
+        for i in range(len(bin_heights)):
+            if bin_centres[i] < 115 or bin_centres[i] > 130: #Choosing criterion
+                bin_heights_background.append(bin_heights[i])
+                bin_centres_background.append(bin_centres[i])
+        bin_heights_background = np.array(bin_heights_background)
+        bin_centres_background = np.array(bin_centres_background)
+    
+        args = (bin_heights_background, bin_centres_background)
+        initial_guess = np.array([30, 10000])
+        results = spo.minimize(chi_squared, initial_guess, args)
+        lamb_opt, A_opt = results['x']
+        chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_opt), ddof=1)
+        p_value_array.append(p_value)
+    p_values.append(np.mean(p_value_array))
+p_values = np.array(p_values)
+#np.savetxt('pvalue_against_signal.csv', p_values, delimiter=',') #Save p-values data here to save time
+# ============================================================================= Obtaining expected p-values for varying number of signals
+
+# ============================================================================= Plot the graph of expected p-values against number of signals
+#Please do not execute the code block above - unless you wanna torture yourself.
+#Plot a graph of p-values against number of signals.
+#p_values = np.loadtxt('pvalue_against_signal.csv', delimiter=',') #Load p-values from saved data
+#signal_min = 150 #Uncomment this
+#signal_max = 400 #Uncomment this
+signal_range = np.array(range(signal_min, signal_max+1, step))
+
+#Let's interpolate the data.
+spl = UnivariateSpline(signal_range, p_values)
+signal_array = np.linspace(150, 400, 1001)
+#And find the number of signals where the p-value = 0.05|
+spl_func = lambda x: spl(x) - 0.05
+critical_signal = spo.fsolve(spl_func, 250)
+critical_signal = int(np.round(critical_signal))
+#Prepare plotted a dotted line for critical_sign
+
+
+#Plotting the data
+fig, ax = plt.subplots()
+ax.plot(signal_range, p_values, '.', color='red', label='Data')
+ax.plot(signal_array, spl(signal_array), color='black', label='Interpolation')
+ax.plot(np.array([150, critical_signal]), np.array([0.05, 0.05]), '--', color='black', linewidth=0.8)
+ax.plot(np.array([critical_signal, critical_signal]), np.array([0, 0.05]), '--', color='black', linewidth=0.8)
+ax.set_xlabel('Number of signals')
+ax.set_ylabel('Expected p-value')
+ax.set_xlim((150, 400))
+ax.set_ylim(0, 0.25)
+ax.legend(frameon=False)
+ax.tick_params(direction='in', which='both')
+ax.minorticks_on()
+ax.xaxis.set_minor_locator(AutoMinorLocator(2))
+ax.yaxis.set_minor_locator(AutoMinorLocator(5))
+#plt.savefig('pvalue_against_signal.eps', format='eps') #Save figure here
+plt.show()
+#Note that we averaged out the p-value over 1000 iterations for each data point. This graph contains a lot of story!
+# ============================================================================= Plot the graph of expected p-values against number of signals
+
+# ============================================================================= Find the probability of getting a hint given expected p-value = 0.05
+#Now, we find the probability of getting the hint (p-value <= 0.05) over a number of iterations when the expected p-value = 0.05 (i.e. critical_signal)
+#We are literally adopting the frequentist approach and rolling a million dices.
+#Note that the code is very similar to how we find the chi-squared distribution.
+pvalue_array = []
+iterations = 100 #Original code = 10000
+for j in range(iterations):
+    vals = st.generate_data(critical_signal) #found to be 255
+    bin_heights, bin_edges = np.histogram(vals, range = [104, 155], bins = 30)
+    bin_centres = 0.5*(bin_edges[1:]+bin_edges[:-1])
+    bin_width = bin_edges[1]-bin_edges[0]
+    #Below is the fitting code when n_signal != 0
+    
+    bin_heights_background = []
+    bin_centres_background = []
+    for i in range(len(bin_heights)):
+        if bin_centres[i] < 115 or bin_centres[i] > 130: #Choosing criterion
+            bin_heights_background.append(bin_heights[i])
+            bin_centres_background.append(bin_centres[i])
+    bin_heights_background = np.array(bin_heights_background)
+    bin_centres_background = np.array(bin_centres_background)
+    
+    args = (bin_heights, bin_centres)
+    initial_guess = np.array([30, 10000])
+    results = spo.minimize(chi_squared, initial_guess, args)
+    lamb_opt, A_opt = results['x']
+    chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_opt), ddof=1)
+    pvalue_array.append(p_value)
+probability_hint = len([i for i in pvalue_array if i<=0.05])/iterations
+#The probability of getting a hint is found to be 69.5% for 10k iterations.
+#Quite like the 1-sigma range in a Gaussian distribution.
+# ============================================================================= Find the probability of getting a hint given expected p-value = 0.05
+
+
