@@ -168,7 +168,7 @@ def fit_area(A):
      area = sp.integrate.quad(lambda x : A*(math.exp(-x/lam)), 104, 155)
      return abs(area[0]-histogram_area)
 
-result = sp.optimize.minimize(fit_area, guess)
+result = spo.minimize(fit_area, guess)
 A2 = result.x
 
 fit_y_values = st.get_B_expectation(bin_edges, A2, initial_lambda)
@@ -182,7 +182,7 @@ def parameter_fit(x, A):
     fit = A*np.exp(-x/lam)
     return fit
 
-A3, A_cov= sp.optimize.curve_fit(parameter_fit, bin_centres2, bin_heights2, guess)
+A3, A_cov= spo.curve_fit(parameter_fit, bin_centres2, bin_heights2, guess)
 
 fit_y_values = st.get_B_expectation(bin_edges2, A3, initial_lambda)
 plt.plot(bin_edges2, fit_y_values, label = 'Curvefit')
@@ -289,6 +289,8 @@ ax.yaxis.set_minor_locator(AutoMinorLocator(4))
 plt.show()
 # ============================================================================= Plotting the data distribution vs the expected distribution for ddof=28
 
+
+#part 4 (c)
 # ============================================================================= Obtaining expected p-values for varying number of signals
 #Warning!
 #Beware of long iteration time - it shall take about three hours for 1k iterations
