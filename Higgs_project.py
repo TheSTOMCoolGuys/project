@@ -3,8 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
 import scipy as sp
-import scipy.optimize
-import scipy.integrate
+import scipy.optimize as spo
+import scipy.integrate as spi
+import scipy.stats as sps
 import math
 
 vals = st.generate_data()
@@ -208,7 +209,7 @@ bin_centres_background = np.array(bin_centres_background)
 
 args = (bin_heights_background, bin_centres_background)
 initial_guess = np.array([30, 10000])
-results = scipy.optimize.minimize(chi_squared, initial_guess, args)
+results = spo.minimize(chi_squared, initial_guess, args)
 chi_min = results['fun']
 lamb_opt, A_opt = results['x']
 
@@ -306,7 +307,7 @@ for j in range(signal_min, signal_max+1, step):
         bin_heights, bin_edges = np.histogram(vals, range = [104, 155], bins = 30)
         bin_centres = 0.5*(bin_edges[1:]+bin_edges[:-1])
         bin_width = bin_edges[1]-bin_edges[0]
-    
+
         bin_heights_background = []
         bin_centres_background = []
         for i in range(len(bin_heights)):
@@ -315,7 +316,7 @@ for j in range(signal_min, signal_max+1, step):
                 bin_centres_background.append(bin_centres[i])
         bin_heights_background = np.array(bin_heights_background)
         bin_centres_background = np.array(bin_centres_background)
-    
+
         args = (bin_heights_background, bin_centres_background)
         initial_guess = np.array([30, 10000])
         results = spo.minimize(chi_squared, initial_guess, args)
@@ -377,7 +378,7 @@ for j in range(iterations):
     bin_centres = 0.5*(bin_edges[1:]+bin_edges[:-1])
     bin_width = bin_edges[1]-bin_edges[0]
     #Below is the fitting code when n_signal != 0
-    
+
     bin_heights_background = []
     bin_centres_background = []
     for i in range(len(bin_heights)):
@@ -386,7 +387,7 @@ for j in range(iterations):
             bin_centres_background.append(bin_centres[i])
     bin_heights_background = np.array(bin_heights_background)
     bin_centres_background = np.array(bin_centres_background)
-    
+
     args = (bin_heights, bin_centres)
     initial_guess = np.array([30, 10000])
     results = spo.minimize(chi_squared, initial_guess, args)
@@ -397,5 +398,3 @@ probability_hint = len([i for i in pvalue_array if i<=0.05])/iterations
 #The probability of getting a hint is found to be 69.5% for 10k iterations.
 #Quite like the 1-sigma range in a Gaussian distribution.
 # ============================================================================= Find the probability of getting a hint given expected p-value = 0.05
-
-
