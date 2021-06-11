@@ -193,12 +193,16 @@ plt.legend()
 # ============================================================================= Samuel's version of chi-squared fit
 def exponential(x, lamb, A):
     return A * np.exp(-x/lamb)
+# Note params are a list of the form [A,lambda]
+# Ni are the y values and xi the corresponding x for the function
 def chi_squared(params, ni, xi): #Note: ni and xi are data arrays
     pull_i = 0
     for i in range(len(ni)):
         pull_i += (ni[i] - params[1] * np.exp(-xi[i]/params[0]))**2 / ni[i]
     return pull_i
 
+# Create a list of x,y coordinates of the the background data points in this section
+# x positions are the bin centres, and y the bin heights
 bin_heights_background = []
 bin_centres_background = []
 for i in range(len(bin_heights)):
@@ -208,12 +212,14 @@ for i in range(len(bin_heights)):
 bin_heights_background = np.array(bin_heights_background)
 bin_centres_background = np.array(bin_centres_background)
 
+# Now the data is loaded into a minimising function to find the best chi^2 value
 args = (bin_heights_background, bin_centres_background)
 initial_guess = np.array([30, 10000])
 results = spo.minimize(chi_squared, initial_guess, args)
-chi_min = results['fun']
-lamb_opt, A_opt = results['x']
+chi_min = results['fun']                                        # select the chi value
+lamb_opt, A_opt = results['x']                                  # selects the optimum values
 
+# plot the background data as well as the exponential with the optimal parameters
 x_array = np.linspace(104, 155, 1000)
 fig, ax = plt.subplots()
 ax.errorbar(bin_centres, bin_heights, xerr = bin_width/2, yerr=np.sqrt(bin_heights), fmt='.', mew=0.5, lw=0.5, ms=8, capsize=1, color='black', label='Data')
@@ -222,14 +228,16 @@ ax.set_xlabel(r'$m_{\gamma\gamma}$ (GeV/c$^2$)')
 ax.set_ylabel('Number of Entries')
 ax.legend(frameon=False)
 ax.tick_params(direction='in',which='both')
+ax.set_title(r'Using $\chi^2$ method to find best parameters for background')
 ax.minorticks_on()
 ax.xaxis.set_minor_locator(AutoMinorLocator(2))
 ax.yaxis.set_minor_locator(AutoMinorLocator(4))
 #plt.savefig('chi.eps', format='eps)
 plt.show()
-# ============================================================================= Samuel's version of chi-squared fit
+# ============================================================================= /Samuel's version of chi-squared fit
 
 # ============================================================================= Find goodness and hypothesis testing
+# Part 3
 goodness = st.get_B_chi(vals, (104, 155), 30, A_opt, lamb_opt)
 #Goodness measures the ratio of chi-squared value with N_dof. It is a bad fit since goodness > 1
 chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_opt), ddof=1)
@@ -244,9 +252,9 @@ chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_
 chi2_array = []
 iterations = 100 #Original code = 10000
 for j in range(iterations):
-    vals = st.generate_data(0)
-    bin_heights, bin_edges = np.histogram(vals, range = [104, 155], bins = 30)
-    bin_centres = 0.5*(bin_edges[1:]+bin_edges[:-1])
+    vals = st.generate_data(0)                                                  # Generate new data
+    bin_heights, bin_edges = np.histogram(vals, range = [104, 155], bins = 30)  # Take the x,y coords
+    bin_centres = 0.5*(bin_edges[1:]+bin_edges[:-1])                            # Do the formating to get it right
     bin_width = bin_edges[1]-bin_edges[0]
     """
     bin_heights_background = []
@@ -258,14 +266,14 @@ for j in range(iterations):
     bin_heights_background = np.array(bin_heights_background)
     bin_centres_background = np.array(bin_centres_background)
     """
-    args = (bin_heights, bin_centres)
+    args = (bin_heights, bin_centres)                                           # Again find the optimal parameters using Chi
     initial_guess = np.array([30, 10000])
     results = spo.minimize(chi_squared, initial_guess, args)
     lamb_opt, A_opt = results['x']
     chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_opt), ddof=1)
     chi2_array.append(chi2)
 chi2_array.sort()
-# ============================================================================= Performing multiple iterations to find chi-square distribution
+# ============================================================================= /Performing multiple iterations to find chi-square distribution
 
 # ============================================================================= Plotting the data distribution vs the expected distribution for ddof=28
 #Please do not execute the code block above more than once, don't spend your life waiting for your computer to get hot.
@@ -298,22 +306,22 @@ plt.show()
 #Do NOT execute this code block unless your computer is connected to a power source.
 #And that you have plenty of time to spare.
 #Now we try to vary the number of signals to find the number of signals where the p-value = 0.05
-iterations = 10 #Original code = 1000
-signal_min = 150 #An initial search shows that the expected p-value starts to drop below 0.1 when signal > 150. This is set to reduce iterations
-signal_max = 400 #endpoint = False
-step = 5 #Must be a factor of signal_max - signal_min
+iterations = 10     #Original code = 1000
+signal_min = 150    #An initial search shows that the expected p-value starts to drop below 0.1 when signal > 150. This is set to reduce iterations
+signal_max = 400    #endpoint = False
+step = 5            #Must be a factor of signal_max - signal_min
 p_values = []
 for j in range(signal_min, signal_max+1, step):
     p_value_array = []
     for k in range(iterations):
-        vals = st.generate_data(j)
-        bin_heights, bin_edges = np.histogram(vals, range = [104, 155], bins = 30)
-        bin_centres = 0.5*(bin_edges[1:]+bin_edges[:-1])
+        vals = st.generate_data(j)                                                      # Like in the previous section but with different signals
+        bin_heights, bin_edges = np.histogram(vals, range = [104, 155], bins = 30)      # Again take the x,y coords
+        bin_centres = 0.5*(bin_edges[1:]+bin_edges[:-1])                                # Formatting
         bin_width = bin_edges[1]-bin_edges[0]
 
         bin_heights_background = []
         bin_centres_background = []
-        for i in range(len(bin_heights)):
+        for i in range(len(bin_heights)):                                               # Now we filter out the background data
             if bin_centres[i] < 115 or bin_centres[i] > 130: #Choosing criterion
                 bin_heights_background.append(bin_heights[i])
                 bin_centres_background.append(bin_centres[i])
@@ -322,10 +330,10 @@ for j in range(signal_min, signal_max+1, step):
 
         args = (bin_heights_background, bin_centres_background)
         initial_guess = np.array([30, 10000])
-        results = spo.minimize(chi_squared, initial_guess, args)
+        results = spo.minimize(chi_squared, initial_guess, args)                        # Chi^2 fit using only background
         lamb_opt, A_opt = results['x']
-        chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_opt), ddof=1)
-        p_value_array.append(p_value)
+        chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_opt), ddof=1) # Now find the chi^2 considering the signal as well
+        p_value_array.append(p_value)                                                   # P value from the chi^2 function
     p_values.append(np.mean(p_value_array))
 p_values = np.array(p_values)
 #np.savetxt('pvalue_against_signal.csv', p_values, delimiter=',') #Save p-values data here to save time
@@ -401,3 +409,10 @@ probability_hint = len([i for i in pvalue_array if i<=0.05])/iterations
 #The probability of getting a hint is found to be 69.5% for 10k iterations.
 #Quite like the 1-sigma range in a Gaussian distribution.
 # ============================================================================= Find the probability of getting a hint given expected p-value = 0.05
+# [Samuel has left the chat]
+# [Dillen has entered the chat]
+
+
+# Part 5 (a)
+# find the Chi^2  value for the background and signal with specific values
+# Let's first import the data points
