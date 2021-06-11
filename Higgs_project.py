@@ -236,8 +236,8 @@ ax.yaxis.set_minor_locator(AutoMinorLocator(4))
 plt.show()
 # ============================================================================= /Samuel's version of chi-squared fit
 
+#Question 3, 4(a)
 # ============================================================================= Find goodness and hypothesis testing
-# Part 3
 goodness = st.get_B_chi(vals, (104, 155), 30, A_opt, lamb_opt)
 #Goodness measures the ratio of chi-squared value with N_dof. It is a bad fit since goodness > 1
 chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_opt), ddof=1)
@@ -246,7 +246,8 @@ chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_
 #Therefore, we may reject this hypothesis at the 5e-7 = 5e-5% = 0.00005% significance level.
 # ============================================================================= Find goodness and hypothesis testing
 
-# ============================================================================= Performing multiple iterations to find chi-square distribution
+#Question 4(b)
+# ============================================================================= Find chi-square distribution for background only hypothesis
 #Warning!
 #Beware of long iteration time - it shall take about ten seconds for 100 iterations, but about 10-15 minutes for 10k iterations!
 chi2_array = []
@@ -256,6 +257,7 @@ for j in range(iterations):
     bin_heights, bin_edges = np.histogram(vals, range = [104, 155], bins = 30)  # Take the x,y coords
     bin_centres = 0.5*(bin_edges[1:]+bin_edges[:-1])                            # Do the formating to get it right
     bin_width = bin_edges[1]-bin_edges[0]
+    #Below is the code for selecting data if n_signal != 0
     """
     bin_heights_background = []
     bin_centres_background = []
@@ -273,10 +275,9 @@ for j in range(iterations):
     chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_opt), ddof=1)
     chi2_array.append(chi2)
 chi2_array.sort()
-# ============================================================================= /Performing multiple iterations to find chi-square distribution
+# ============================================================================= Find chi-square distribution for background only hypothesis
 
-# ============================================================================= Plotting the data distribution vs the expected distribution for ddof=28
-#Please do not execute the code block above more than once, don't spend your life waiting for your computer to get hot.
+# ============================================================================= Plot chi-square distribution for background only hypothesis
 #Plot the distribution of chi-square in 10k iterations.
 #np.savetxt('chisquare_distribution_nosignal.csv', chi2_array, delimiter=',') #Save chi-square distribution data here to save time
 #chi2_array = np.loadtxt('chisquare_distribution_nosignal.csv', delimiter=',') #Load chi-square distribution from saved data
@@ -296,10 +297,10 @@ ax.xaxis.set_minor_locator(AutoMinorLocator(2))
 ax.yaxis.set_minor_locator(AutoMinorLocator(4))
 #plt.savefig('chisquare_distribution_nosignal.eps', format='eps')
 plt.show()
-# ============================================================================= Plotting the data distribution vs the expected distribution for ddof=28
+# ============================================================================= Plot chi-square distribution for background only hypothesis
 
 
-#part 4 (c)
+#Question 4(c)
 # ============================================================================= Obtaining expected p-values for varying number of signals
 #Warning!
 #Beware of long iteration time - it shall take about three hours for 1k iterations
@@ -413,7 +414,7 @@ probability_hint = len([i for i in pvalue_array if i<=0.05])/iterations
 # [Dillen has entered the chat]
 
 
-# Part 5 (a)
+# Question 5(a)
 # find the Chi^2  value for the background and signal with specific values
 # Let's first import the data points
 
@@ -447,7 +448,7 @@ def complete_func(x, lamb, A, signal_amp, mu, sig):
 #The number of signals here is n_signal = 400.
 chi2_array = []
 pvalue_array = []
-iterations = 10000 #Original = 10000
+iterations = 100 #Original = 10000
 for j in range(iterations):
     vals = st.generate_data()
     bin_heights, bin_edges = np.histogram(vals, range = [104, 155], bins = 30)
@@ -465,7 +466,7 @@ chi2_array.sort()
 pvalue_average = np.mean(pvalue_array)
 #The mean pvalue is about 0.5. This means that we can reject the background + signal hypothesis at 50% significance level.
 #This significance level is too high. This means that we cannot reject the hypothesis, and it is very likely that the hypothesis is true.
-#Although there is no method to prove that it is 100% true.
+#Although there is no method to prove that it is 100% true. #Answer to question 5(b) here - elaborate
 
 #Please do not execute the code block above more than once.
 #Plot the distribution of chi-square in 10k iterations.
@@ -489,6 +490,7 @@ ax.yaxis.set_minor_locator(AutoMinorLocator(4))
 plt.show()
 # ============================================================================= Find the chi-square distribution for background + signal model (2D)
 
+#Question 5(c)
 # ============================================================================= Find the chi-square distribution for background + signal model (5D)
 #Warning!
 #Beware of long iteration time - it shall take about ten minutes for 10k iterations.
@@ -499,9 +501,8 @@ plt.show()
 #Let's allow 2 degrees of freedom against the background data, then 3 degrees of freedom for the signal data.
 chi2_array = []
 pvalue_array = []
-mass_array = []
-uncertainty_array = []
-iterations = 10000 #Original = 10000
+mass_save = []
+iterations = 100 #Original = 10000
 for j in range(iterations):
     #Generating and pre-processing data
     vals = st.generate_data()
@@ -534,18 +535,28 @@ for j in range(iterations):
     chi2, p_value = sps.chisquare(bin_heights, complete_func(bin_centres, lamb_opt, A_opt, *popt), ddof=4) #here ddof=5, but the function +1 automatically to remove bias, so we reduce by 1.
     chi2_array.append(chi2)
     pvalue_array.append(p_value)
-    mass_array.append(popt[1])
-    uncertainty_array.append(popt[2])
+    mass_save.append([popt[1], popt[2]])
+mass_save = np.array(mass_save)
 chi2_array.sort()
+#Do not sort mass array! We need its correspondence to uncertainty array to do our analysis.
+#np.savetxt('mass_weighted_array_incsignal_5D.csv', mass_save, delimiter=',') #Save mass data here to save time
+#mass_save = np.loadtxt('mass_array_incsignal_5D.csv', delimiter=',') #Load mass from data files
+mass_array = mass_save[:,0]
+uncertainty_array = mass_save[:,1]
 pvalue_average = np.mean(pvalue_array)
-#The mean pvalue is about 0.5 (0.487). This means that we can reject the background + signal hypothesis at 50% significance level.
+#The mean pvalue is about 0.5 (0.49). This means that we can reject the background + signal hypothesis at 50% significance level.
 #This significance level is too high. This means that we cannot reject the hypothesis, and it is very likely that the hypothesis is true.
 #Although there is no method to prove that it is 100% true.
-mass_average = np.mean(mass_array)
-#We find mass_average = 125.00 GeV. Correct!
-mass_average_uncertainty = np.sqrt(np.sum(np.array(uncertainty_array)**2))/len(uncertainty_array)
-#Uncertainty is found to be 0.02 GeV. It is small because we have done lots of iterations.
 
+#Calculate weighted average and its uncertainty according to StoM PS3 Q1(a). Refer to that problem sheet!
+mass_weighted_average = np.sum(mass_array/uncertainty_array**2)/np.sum(1/uncertainty_array**2)
+#We find mass_average = 124.98 GeV. Correct!
+mass_weighted_average_uncertainty = 1/np.sqrt(np.sum(1/uncertainty_array**2))
+#Uncertainty is found to be 0.02 GeV. It is small because we have done lots of iterations.
+#After 10k simulations, we conclude the Higgs mass to be 124.98 +/- 0.02 GeV/c^2
+# ============================================================================= Find the chi-square distribution for background + signal model (5D)
+
+# ============================================================================= Plot the chi-square distribution for background + signal model (5D)
 #Please do not execute the code block above more than once.
 #Plot the distribution of chi-square in 10k iterations.
 #np.savetxt('chisquare_distribution_incsignal_5D.csv', chi2_array, delimiter=',') #Save chi-square distribution data here to save time
@@ -566,8 +577,9 @@ ax.xaxis.set_minor_locator(AutoMinorLocator(2))
 ax.yaxis.set_minor_locator(AutoMinorLocator(4))
 #plt.savefig('chisquare_distribution_incsignal_5D.eps', format='eps')
 plt.show()
-# ============================================================================= Find the chi-square distribution for background + signal model (5D)
+# ============================================================================= Plot the chi-square distribution for background + signal model (5D)
 
+#Conclusion and wrapping up
 # ============================================================================= Plot the famous Higgs boson graph to conclude our mighty analysis
 #Final results: Play with it as you want! It executes quickly luckily.
 vals = st.generate_data()
