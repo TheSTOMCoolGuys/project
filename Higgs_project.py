@@ -488,3 +488,82 @@ ax.yaxis.set_minor_locator(AutoMinorLocator(4))
 #plt.savefig('chisquare_distribution_incsignal_2D.eps', format='eps')
 plt.show()
 # ============================================================================= Find the chi-square distribution for background + signal model (2D)
+
+# ============================================================================= Find the chi-square distribution for background + signal model (5D)
+#Warning!
+#Beware of long iteration time - it shall take about ten minutes for 10k iterations.
+#This code block finds the chi-square distribution for a background + signal model.
+#We allow 2 degrees of freedom for lambda and A.
+#The number of signals here is n_signal = 400.
+#We find that allowing 5 degrees of freedom at the same time will yield very weird results.
+#Let's allow 2 degrees of freedom against the background data, then 3 degrees of freedom for the signal data.
+chi2_array = []
+pvalue_array = []
+mass_array = []
+uncertainty_array = []
+iterations = 10000 #Original = 10000
+for j in range(iterations):
+    #Generating and pre-processing data
+    vals = st.generate_data()
+    bin_heights, bin_edges = np.histogram(vals, range = [104, 155], bins = 30)
+    bin_centres = 0.5*(bin_edges[1:]+bin_edges[:-1])
+    bin_width = bin_edges[1]-bin_edges[0]
+    
+    #Extracting data not without signal included
+    bin_heights_background = []
+    bin_centres_background = []
+    for i in range(len(bin_heights)):
+        if bin_centres[i] < 115 or bin_centres[i] > 130: #Choosing criterion
+            bin_heights_background.append(bin_heights[i])
+            bin_centres_background.append(bin_centres[i])
+    bin_heights_background = np.array(bin_heights_background)
+    bin_centres_background = np.array(bin_centres_background)
+    
+    #Fitting lambda and A first - the first two degrees of freedom
+    args = (bin_heights_background, bin_centres_background)
+    initial_guess = np.array([30, 10000])
+    results = spo.minimize(chi_squared, initial_guess, args)
+    lamb_opt, A_opt = results['x']
+    
+    #Now fit signal_amp, mu, sig - the other three degrees of freedom
+    args = (bin_heights, bin_centres, lamb_opt, A_opt)
+    initial_guess = np.array([700, 125, 1.5])
+    results = spo.minimize(chi_squared_5D_signal, initial_guess, args)
+    chi_min = results['fun']
+    popt = results['x']
+    chi2, p_value = sps.chisquare(bin_heights, complete_func(bin_centres, lamb_opt, A_opt, *popt), ddof=4) #here ddof=5, but the function +1 automatically to remove bias, so we reduce by 1.
+    chi2_array.append(chi2)
+    pvalue_array.append(p_value)
+    mass_array.append(popt[1])
+    uncertainty_array.append(popt[2])
+chi2_array.sort()
+pvalue_average = np.mean(pvalue_array)
+#The mean pvalue is about 0.5 (0.487). This means that we can reject the background + signal hypothesis at 50% significance level.
+#This significance level is too high. This means that we cannot reject the hypothesis, and it is very likely that the hypothesis is true.
+#Although there is no method to prove that it is 100% true.
+mass_average = np.mean(mass_array)
+#We find mass_average = 125.00 GeV. Correct!
+mass_average_uncertainty = np.sqrt(np.sum(np.array(uncertainty_array)**2))/len(uncertainty_array)
+#Uncertainty is found to be 0.02 GeV. It is small because we have done lots of iterations.
+
+#Please do not execute the code block above more than once.
+#Plot the distribution of chi-square in 10k iterations.
+#np.savetxt('chisquare_distribution_incsignal_5D.csv', chi2_array, delimiter=',') #Save chi-square distribution data here to save time
+#chi2_array = np.loadtxt('chisquare_distribution_incsignal_5D.csv', delimiter=',') #Load chi-square distribution from saved data
+chi2_x = np.linspace(0, 60, 1000)
+chi2_y = sps.chi2.pdf(chi2_x, 30-5) #Second argument is ddof
+fig, ax = plt.subplots()
+chi2_values, chi2_bins, chi2_patches = ax.hist(chi2_array, label='Data', bins=30, histtype='step', color='red')
+chi2_area = sum(np.diff(chi2_bins)*chi2_values) #Scale PDF by calculating the area under the histogram
+ax.plot(chi2_x, chi2_y*chi2_area, label='PDF', color='black') #N.B. PDF changes with the number of bins
+ax.set_xlabel(r'$\chi^2$')
+ax.set_ylabel('Number of simulations')
+ax.set_xlim((0,60))
+ax.legend(frameon=False)
+ax.tick_params(direction='in', which='both', axis='y')
+ax.minorticks_on()
+ax.xaxis.set_minor_locator(AutoMinorLocator(2))
+ax.yaxis.set_minor_locator(AutoMinorLocator(4))
+#plt.savefig('chisquare_distribution_incsignal_5D.eps', format='eps')
+plt.show()
+# ============================================================================= Find the chi-square distribution for background + signal model (5D)
