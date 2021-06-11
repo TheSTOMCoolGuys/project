@@ -7,6 +7,7 @@ import scipy.optimize as spo
 import scipy.integrate as spi
 import scipy.stats as sps
 import math
+from scipy.interpolate import UnivariateSpline
 
 vals = st.generate_data()
 
