@@ -567,3 +567,59 @@ ax.yaxis.set_minor_locator(AutoMinorLocator(4))
 #plt.savefig('chisquare_distribution_incsignal_5D.eps', format='eps')
 plt.show()
 # ============================================================================= Find the chi-square distribution for background + signal model (5D)
+
+# ============================================================================= Plot the famous Higgs boson graph to conclude our mighty analysis
+#Final results: Play with it as you want! It executes quickly luckily.
+vals = st.generate_data()
+bin_heights, bin_edges = np.histogram(vals, range = [104, 155], bins = 30)
+bin_centres = 0.5*(bin_edges[1:]+bin_edges[:-1])
+bin_width = bin_edges[1]-bin_edges[0]
+#Choosing data again
+bin_heights_background = []
+bin_centres_background = []
+for i in range(len(bin_heights)):
+    if bin_centres[i] < 115 or bin_centres[i] > 130: #Choosing criterion
+        bin_heights_background.append(bin_heights[i])
+        bin_centres_background.append(bin_centres[i])
+bin_heights_background = np.array(bin_heights_background)
+bin_centres_background = np.array(bin_centres_background)
+
+#Fitting the background (now extracting errors as well)
+#The error is used to plot boundaries in the background signal
+initial_guess = np.array([30, 10000])
+popt, pcov = spo.curve_fit(exponential, bin_centres_background, bin_heights_background, initial_guess)
+perr = np.sqrt(np.diag(pcov))
+lamb_opt, A_opt = popt[0], popt[1]
+lamb_err, A_err = perr[0], perr[1]
+#Find the one sigma error of the function: define an error propagation function
+def func_err(x):
+    return np.exp(-x/lamb_opt)*np.sqrt(A_err**2 + (x*A_opt/(lamb_opt**2)*lamb_err)**2)
+#Fitting the signal here
+args = (bin_heights, bin_centres, lamb_opt, A_opt)
+initial_guess = np.array([700, 125, 1.5])
+results = spo.minimize(chi_squared_5D_signal, initial_guess, args)
+signal_amp_opt, mu_opt, sig_opt = results['x']
+
+#Plotting the graph and having lots of paella
+x_final_array = np.linspace(104, 155, 1001)
+y_final_background = exponential(x_final_array, lamb_opt, A_opt)
+fig, ax = plt.subplots()
+ax.errorbar(bin_centres, bin_heights, xerr = bin_width/2, yerr=np.sqrt(bin_heights), fmt='.', mew=0.5, lw=0.5, ms=8, capsize=1, color='black', label='Data')
+ax.plot(x_final_array, y_final_background, '--', color='red', label='B')
+ax.plot(x_final_array, complete_func(x_final_array, lamb_opt, A_opt, signal_amp_opt, mu_opt, sig_opt), color='red', label='B+S (fit)')
+ax.fill_between(x_final_array, y_final_background - func_err(x_final_array), y_final_background + func_err(x_final_array), color='yellow', label='B Uncertainty')
+ax.set_xlabel(r'$m_{\gamma\gamma}$ (GeV/c$^2$)')
+ax.set_ylabel('Number of Entries')
+ax.set_xlim((104, 155))
+ax.set_ylim((0, 2000))
+handles, labels = ax.get_legend_handles_labels() #Changing the ordering of labels in the legend
+handles = [handles[3], handles[1], handles[0], handles[2]]
+labels = [labels[3], labels[1], labels[0], labels[2]]
+ax.legend(handles, labels, frameon=False)
+ax.tick_params(direction='in',which='both')
+ax.minorticks_on()
+ax.xaxis.set_minor_locator(AutoMinorLocator(2))
+ax.yaxis.set_minor_locator(AutoMinorLocator(5))
+#plt.savefig('Higgs_boson_plot.eps', format='eps')
+plt.show()
+# ============================================================================= Plot the famous Higgs boson graph to conclude our mighty analysis
