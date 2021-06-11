@@ -416,3 +416,75 @@ probability_hint = len([i for i in pvalue_array if i<=0.05])/iterations
 # Part 5 (a)
 # find the Chi^2  value for the background and signal with specific values
 # Let's first import the data points
+
+# ============================================================================= Function definition for background + signal model
+#Question 5a: Signal Estimation (chi2 value)
+
+#Below shows a 2D optimisation algorithm for params = [lambda, A]
+def chi_squared_2D_signal(params, ni, xi, signal_amp, mu, sig):
+    pull_i = 0
+    for i in range(len(ni)):
+        pull_i += (ni[i] - (params[1]*np.exp(-xi[i]/params[0]) + signal_amp/(np.sqrt(2.*np.pi)*sig)*np.exp(-np.power((xi[i] - mu)/sig, 2.)/2)))**2 / ni[i]
+    return pull_i
+
+#And here is the 5D optimisation algorithm for params = [signal_amp, mu, sig]
+def chi_squared_5D_signal(params, ni, xi, lamb, A):
+    pull_i = 0
+    for i in range(len(ni)):
+        pull_i += (ni[i] - (A*np.exp(-xi[i]/lamb) + params[0]/(np.sqrt(2.*np.pi)*params[2])*np.exp(-np.power((xi[i] - params[1])/params[2], 2.)/2)))**2 / ni[i]
+    return pull_i
+
+#Finally, the function = exponential + signal
+def complete_func(x, lamb, A, signal_amp, mu, sig):
+    return A * np.exp(-x/lamb) + signal_amp/(np.sqrt(2.*np.pi)*sig)*np.exp(-np.power((x - mu)/sig, 2.)/2)
+# ============================================================================= Function definition for background + signal model
+
+# ============================================================================= Find the chi-square distribution for background + signal model (2D)
+#Warning!
+#Beware of long iteration time - it shall take about ten minutes for 10k iterations.
+#This code block finds the chi-square distribution for a background + signal model.
+#We allow 2 degrees of freedom for lambda and A.
+#The number of signals here is n_signal = 400.
+chi2_array = []
+pvalue_array = []
+iterations = 10000 #Original = 10000
+for j in range(iterations):
+    vals = st.generate_data()
+    bin_heights, bin_edges = np.histogram(vals, range = [104, 155], bins = 30)
+    bin_centres = 0.5*(bin_edges[1:]+bin_edges[:-1])
+    bin_width = bin_edges[1]-bin_edges[0]
+    args = (bin_heights, bin_centres, 700, 125, 1.5)
+    initial_guess = np.array([30, 10000])
+    results = spo.minimize(chi_squared_2D_signal, initial_guess, args)
+    chi_min = results['fun']
+    lamb_opt, A_opt = results['x']
+    chi2, p_value = sps.chisquare(bin_heights, complete_func(bin_centres, lamb_opt, A_opt, 700, 125, 1.5), ddof=1) #here ddof=2, but the function +1 automatically to remove bias, so we reduce by 1.
+    chi2_array.append(chi2)
+    pvalue_array.append(p_value)
+chi2_array.sort()
+pvalue_average = np.mean(pvalue_array)
+#The mean pvalue is about 0.5. This means that we can reject the background + signal hypothesis at 50% significance level.
+#This significance level is too high. This means that we cannot reject the hypothesis, and it is very likely that the hypothesis is true.
+#Although there is no method to prove that it is 100% true.
+
+#Please do not execute the code block above more than once.
+#Plot the distribution of chi-square in 10k iterations.
+#np.savetxt('chisquare_distribution_incsignal_2D.csv', chi2_array, delimiter=',') #Save chi-square distribution data here to save time
+#chi2_array = np.loadtxt('chisquare_distribution_incsignal_2D.csv', delimiter=',') #Load chi-square distribution from saved data
+chi2_x = np.linspace(0, 60, 1000)
+chi2_y = sps.chi2.pdf(chi2_x, 30-2) #Second argument is ddof
+fig, ax = plt.subplots()
+chi2_values, chi2_bins, chi2_patches = ax.hist(chi2_array, label='Data', bins=30, histtype='step', color='red')
+chi2_area = sum(np.diff(chi2_bins)*chi2_values) #Scale PDF by calculating the area under the histogram
+ax.plot(chi2_x, chi2_y*chi2_area, label='PDF', color='black') #N.B. PDF changes with the number of bins
+ax.set_xlabel(r'$\chi^2$')
+ax.set_ylabel('Number of simulations')
+ax.set_xlim((0,60))
+ax.legend(frameon=False)
+ax.tick_params(direction='in', which='both', axis='y')
+ax.minorticks_on()
+ax.xaxis.set_minor_locator(AutoMinorLocator(2))
+ax.yaxis.set_minor_locator(AutoMinorLocator(4))
+#plt.savefig('chisquare_distribution_incsignal_2D.eps', format='eps')
+plt.show()
+# ============================================================================= Find the chi-square distribution for background + signal model (2D)
