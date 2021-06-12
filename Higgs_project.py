@@ -234,21 +234,59 @@ ax.xaxis.set_minor_locator(AutoMinorLocator(2))
 ax.yaxis.set_minor_locator(AutoMinorLocator(4))
 #plt.savefig('chi.eps', format='eps)
 plt.show()
-# ============================================================================= /Samuel's version of chi-squared fit
+# ============================================================================= Samuel's version of chi-squared fit
 
 #Question 3, 4(a)
-# ============================================================================= Find goodness and hypothesis testing
-goodness = st.get_B_chi(vals, (104, 155), 30, A_opt, lamb_opt)
-#Goodness measures the ratio of chi-squared value with N_dof. It is a bad fit since goodness > 1
-chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_opt), ddof=1)
-#We set ddof = 1 although there are two degrees of freedom because documentation has an addition -1 to correct for bias.
-#The p-value is in the order of magnitude of 10^-7. There is a very small possibility to getting the observed or an even worse value.
-#Therefore, we may reject this hypothesis at the 5e-7 = 5e-5% = 0.00005% significance level.
-# ============================================================================= Find goodness and hypothesis testing
+# ============================================================================= Generate goodness and hypothesis testing data
+#This question assumes n_signal = 400. It is not to be confused with the question below, where we assumes n_signal = 0.
+#Therefore, the background hypothesis is rejected here, but is accepted in question 4b.
+#Edit: We run 10k iterations to ensure that our goodness of fit is not affected by random uncertainties.
+iterations = 100 #Original = 10000
+background_hypothesis = np.empty((iterations, 3))
+for i in range(iterations):
+    vals = st.generate_data()
+    bin_heights, bin_edges = np.histogram(vals, range = [104, 155], bins = 30)
+    bin_centres = 0.5*(bin_edges[1:]+bin_edges[:-1])
+    bin_width = bin_edges[1]-bin_edges[0]
+    #Removing the signal portion when fitting
+    bin_heights_background = []
+    bin_centres_background = []
+    for j in range(len(bin_heights)):
+        if bin_centres[j] < 115 or bin_centres[j] > 130: #Choosing criterion
+            bin_heights_background.append(bin_heights[j])
+            bin_centres_background.append(bin_centres[j])
+    bin_heights_background = np.array(bin_heights_background)
+    bin_centres_background = np.array(bin_centres_background)
+
+    args = (bin_heights_background, bin_centres_background)
+    initial_guess = np.array([30, 10000])
+    results = spo.minimize(chi_squared, initial_guess, args)
+    #chi_min = results['fun']
+    lamb_opt, A_opt = results['x']
+    goodness = st.get_B_chi(vals, (104, 155), 30, A_opt, lamb_opt)
+    #Goodness measures the ratio of chi-squared value with N_dof. It is a bad fit if goodness > 1
+    chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_opt), ddof=1)
+    #We set ddof = 1 although there are two degrees of freedom because documentation has an addition -1 to correct for bias.
+    background_hypothesis[i] = (goodness, chi2, p_value)
+#np.savetxt('background_hypothesis.csv', background_hypothesis, delimiter=',') #Save background hypothesis data here to save time
+# ============================================================================= Generate goodness and hypothesis testing data
+
+# ============================================================================= Find the goodness of fit and conduct hypothesis testing
+#background_hypothesis = np.loadtxt('background_hypothesis.csv', delimiter=',') #Load background hypothesis data for analysis
+background_hypothesis_mean = np.mean(background_hypothesis, axis=0)
+background_hypothesis_std = np.std(background_hypothesis, axis=0, ddof=1)
+background_hypothesis_se = background_hypothesis_std/np.sqrt(iterations)
+print('The goodness of fit (reduced chi-squared value) is %f +/- %f.' %(background_hypothesis_mean[0], background_hypothesis_se[0]))
+print('The chi-squared value of the background-only hypothesis is %f +/- %f.' %(background_hypothesis_mean[1], background_hypothesis_se[1]))
+print('The p-value of the background-only hypothesis is %e +/- %e.' %(background_hypothesis_mean[2], background_hypothesis_se[2]))
+#The goodness of fit (reduced chi-squared value) is 3.07 +/- 0.07. The goodness of fit is bad since reduced chi-squared > 1.
+#The chi-squared value of the background-only hypothesis is 85.4 +/- 0.2. It contains the same information as the reduced chi-squared.
+#The p-value of the background-only hypothesis is (6.5 +/- 0.8)e-5. We can reject the hypothesis at a very low significance level (i.e. quite easily).
+# ============================================================================= Find the goodness of fit and conduct hypothesis testing
 
 #Question 4(b)
 # ============================================================================= Find chi-square distribution for background only hypothesis
-#Warning!
+#This part assumes n_signal = 0. It is not to be confused with the previous part, where n_signal = 400.
 #Beware of long iteration time - it shall take about ten seconds for 100 iterations, but about 10-15 minutes for 10k iterations!
 chi2_array = []
 iterations = 100 #Original code = 10000
