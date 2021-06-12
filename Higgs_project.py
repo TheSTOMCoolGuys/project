@@ -271,18 +271,46 @@ for i in range(iterations):
 #np.savetxt('background_hypothesis.csv', background_hypothesis, delimiter=',') #Save background hypothesis data here to save time
 # ============================================================================= Generate goodness and hypothesis testing data
 
-# ============================================================================= Find the goodness of fit and conduct hypothesis testing
+# ============================================================================= Find sigma distribution for background-only hypothesis when n_signal=400
+#iterations = 10000 #Uncomment this
 #background_hypothesis = np.loadtxt('background_hypothesis.csv', delimiter=',') #Load background hypothesis data for analysis
 background_hypothesis_mean = np.mean(background_hypothesis, axis=0)
 background_hypothesis_std = np.std(background_hypothesis, axis=0, ddof=1)
 background_hypothesis_se = background_hypothesis_std/np.sqrt(iterations)
 print('The goodness of fit (reduced chi-squared value) is %f +/- %f.' %(background_hypothesis_mean[0], background_hypothesis_se[0]))
 print('The chi-squared value of the background-only hypothesis is %f +/- %f.' %(background_hypothesis_mean[1], background_hypothesis_se[1]))
-print('The p-value of the background-only hypothesis is %e +/- %e.' %(background_hypothesis_mean[2], background_hypothesis_se[2]))
 #The goodness of fit (reduced chi-squared value) is 3.07 +/- 0.07. The goodness of fit is bad since reduced chi-squared > 1.
 #The chi-squared value of the background-only hypothesis is 85.4 +/- 0.2. It contains the same information as the reduced chi-squared.
-#The p-value of the background-only hypothesis is (6.5 +/- 0.8)e-5. We can reject the hypothesis at a very low significance level (i.e. quite easily).
-# ============================================================================= Find the goodness of fit and conduct hypothesis testing
+
+#Let's analyse the distribution of sigma throughout these 10k simulations by plotting a histogram.
+sigma_value = np.sqrt(2)*spp.erfcinv(background_hypothesis[:,2])
+sigma_value_mean = np.mean(sigma_value)
+sigma_value_std = np.std(sigma_value, ddof=1)
+sigma_value_se = sigma_value_std / np.sqrt(iterations) #This only measures the accuracy of the mean of sigma value, not the distribution itself.
+#We measure the average sigma for 10k simulations is 5.25 +/- 0.01. This means over half of the simulations will show confirmation (sigma>5) of a new particle.
+
+#Fit a gaussian - pretty random, but it looks like one
+bin_heights, bin_edges = np.histogram(sigma_value, bins=30, range=(0,10))
+bin_centres = 0.5*(bin_edges[1:]+bin_edges[:-1])
+bin_width = bin_edges[1]-bin_edges[0]
+initial_guess = (5, 1, 500)
+popt, pcov = spo.curve_fit(st.signal_gaus, bin_centres, bin_heights, initial_guess)
+sigma_array = np.linspace(0, 10, 1001)
+fig, ax = plt.subplots()
+ax.hist(sigma_value, bins=30, range=(0,10), histtype='step', color='red', label='Data')
+ax.plot(sigma_array, st.signal_gaus(sigma_array, *popt), color='black', label='Fit')
+ax.set_xlabel('Sigma')
+ax.set_ylabel('Number of Entries')
+ax.set_xlim((0,10))
+ax.set_ylim((0,1200))
+ax.legend(frameon=False)
+ax.tick_params(direction='in',which='both', axis='y')
+ax.minorticks_on()
+ax.xaxis.set_minor_locator(AutoMinorLocator(2))
+ax.yaxis.set_minor_locator(AutoMinorLocator(4))
+#plt.savefig('sigma_distribution.eps', format='eps')
+plt.show()
+# ============================================================================= Find sigma distribution for background-only hypothesis when n_signal=400
 
 #Question 4(b)
 # ============================================================================= Find chi-square distribution for background only hypothesis
