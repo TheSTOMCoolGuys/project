@@ -335,7 +335,7 @@ for j in range(signal_min, signal_max+1, step):
         lamb_opt, A_opt = results['x']
         chi2, p_value = sps.chisquare(bin_heights, exponential(bin_centres, lamb_opt, A_opt), ddof=1) # Now find the chi^2 considering the signal as well
         p_value_array.append(p_value)                                                   # P value from the chi^2 function
-    p_values.append(np.mean(p_value_array))
+    p_values.append(p_value_array)                                                      #Edit: Saved full array instead of mean data for future usage.
 p_values = np.array(p_values)
 #np.savetxt('pvalue_against_signal.csv', p_values, delimiter=',') #Save p-values data here to save time
 # ============================================================================= Obtaining expected p-values for varying number of signals
@@ -344,36 +344,46 @@ p_values = np.array(p_values)
 #Please do not execute the code block above - unless you wanna torture yourself.
 #Plot a graph of p-values against number of signals.
 #p_values = np.loadtxt('pvalue_against_signal.csv', delimiter=',') #Load p-values from saved data
+p_values_mean = np.mean(p_values, axis=1)
+p_values_std = np.std(p_values, axis=1, ddof=1)
+p_values_se = p_values_std / np.sqrt(iterations)
 #signal_min = 150 #Uncomment this
 #signal_max = 400 #Uncomment this
 signal_range = np.array(range(signal_min, signal_max+1, step))
 
 #Let's interpolate the data.
-spl = UnivariateSpline(signal_range, p_values)
-signal_array = np.linspace(150, 400, 1001)
+spl = UnivariateSpline(signal_range, p_values_mean, w=1/p_values_se)
+signal_array = np.linspace(145, 405, 1001)
 #And find the number of signals where the p-value = 0.05|
 spl_func = lambda x: spl(x) - 0.05
 critical_signal = spo.fsolve(spl_func, 250)
 critical_signal = int(np.round(critical_signal))
-#Prepare plotted a dotted line for critical_sign
+print('The number of signals where p-value = 0.05 is ', critical_signal)
+#This is the second set of simulation data I have taken.
+#I forget to save the full set of data for the first simulation and missed out the error bars, so I performed another one overnight.
+#The first simulation result is n_signal = 255 when p-value = 0.05.
+#So both 254 and 255 signals are fine. I think 255 seems more beautiful haha.
 
 
 #Plotting the data
 fig, ax = plt.subplots()
-ax.plot(signal_range, p_values, '.', color='red', label='Data')
-ax.plot(signal_array, spl(signal_array), color='black', label='Interpolation')
-ax.plot(np.array([150, critical_signal]), np.array([0.05, 0.05]), '--', color='black', linewidth=0.8)
+ax.errorbar(signal_range, p_values_mean, yerr=p_values_se, fmt='.', mew=0.5, lw=0.5, ms=8, capsize=1, color='black', label='Data')
+ax.plot(signal_array, spl(signal_array), color='red', label='Interpolation')
+ax.plot(np.array([145, critical_signal]), np.array([0.05, 0.05]), '--', color='black', linewidth=0.8)
 ax.plot(np.array([critical_signal, critical_signal]), np.array([0, 0.05]), '--', color='black', linewidth=0.8)
-ax.set_xlabel('Number of signals')
+ax.set_xlabel('Number of Signals')
 ax.set_ylabel('Expected p-value')
-ax.set_xlim((150, 400))
-ax.set_ylim(0, 0.25)
-ax.legend(frameon=False)
+ax.set_xlim((145, 405))
+ax.set_ylim(0, 0.265)
+handles, labels = ax.get_legend_handles_labels()                                            #Rearranging the legend order more sensibly
+handles = [handles[1], handles[0]]
+labels = [labels[1], labels[0]]
+ax.legend(handles, labels, frameon=False)
 ax.tick_params(direction='in', which='both')
 ax.minorticks_on()
 ax.xaxis.set_minor_locator(AutoMinorLocator(2))
 ax.yaxis.set_minor_locator(AutoMinorLocator(5))
-#plt.savefig('pvalue_against_signal.eps', format='eps') #Save figure here
+#plt.savefig('pvalue_against_signal_v2.eps', format='eps') #Save figure here
 plt.show()
 #Note that we averaged out the p-value over 1000 iterations for each data point. This graph contains a lot of story!
 # ============================================================================= Plot the graph of expected p-values against number of signals
