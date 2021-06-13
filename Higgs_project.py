@@ -687,6 +687,24 @@ initial_guess = np.array([700, 125, 1.5])
 results = spo.minimize(chi_squared_5D_signal, initial_guess, args)
 signal_amp_opt, mu_opt, sig_opt = results['x']
 
+#Plot chi-squared minimization result
+mu_array = np.linspace(104, 155, 1001)
+ddof_y = np.full(len(mu_array), 30-5)
+fig, ax = plt.subplots()
+ax.plot(mu_array, chi_squared_5D_signal((signal_amp_opt, mu_array, sig_opt), bin_heights, bin_centres, lamb_opt, A_opt), color='black', label='Data')
+ax.plot(mu_array, ddof_y, color='red', label='DDOF')
+ax.set_xlabel(r'$m_{\gamma\gamma}$ (GeV/c$^2$)')
+ax.set_ylabel(r'$\chi^2$')
+ax.set_xlim((104, 155))
+ax.set_ylim((0, None))
+ax.legend(frameon=False)
+ax.tick_params(direction='in',which='both')
+ax.minorticks_on()
+ax.xaxis.set_minor_locator(AutoMinorLocator(2))
+ax.yaxis.set_minor_locator(AutoMinorLocator(5))
+#plt.savefig('chi2_against_mass_v2.eps', format='eps')
+plt.show()
+
 #Plotting the graph and having lots of paella
 x_final_array = np.linspace(104, 155, 1001)
 y_final_background = exponential(x_final_array, lamb_opt, A_opt)
